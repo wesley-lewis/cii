@@ -80,5 +80,5 @@ fn main() {
 
 // 1) basic structure of project parser setup 
 // 2) structure of tokens and token type are defined
-// 3) started to scan tokens
-// part 3 -> 18:05
+// 3) started to scan tokens and manage errors
+// part 3 done

@@ -20,9 +20,13 @@ impl Scanner {
     }
 
     pub fn scan_tokens(&mut self) -> Result<Vec<Token>, String> {
+        let mut errors = vec![];
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token(); 
+            match self.scan_token() {
+                Ok(_) => {},
+                Err(msg) => errors.push(msg),
+            }
         }
 
         // adding Eof token
@@ -33,6 +37,15 @@ impl Scanner {
             line_num: self.line,
         });
 
+        if errors.len() > 0 {
+            let mut joined = "".to_string();
+            errors.iter().map(|msg| {
+                joined.push_str(&msg);
+                joined.push_str("\n");
+            });
+
+            return Err(joined);
+        }
         Ok(self.tokens.clone())
     }
 
@@ -47,23 +60,34 @@ impl Scanner {
             ',' => self.add_token(TokenType::Comma),
             '.' => self.add_token(TokenType::Dot),
             '-' => self.add_token(TokenType::Minus),
-            _ => {} 
+            '+' => self.add_token(TokenType::Plus),
+            ';' => self.add_token(TokenType::SemiColon),
+            '*' => self.add_token(TokenType::Star),
+            _ => return Err(format!("unrecognised char at line {}: {}", self.line, c)),
         }
 
         todo!()
     }
 
     fn add_token(&mut self, token_type: TokenType) {
+        self.add_token_lit(token_type, None);
+    }
+
+    fn add_token_lit(&mut self, token_type: TokenType, literal: Option<LiteralValue>) {
+        let text = self.source[self.start..self.current].to_string();
         self.tokens.push(Token {
             token_type,
+            literal,
             line_num: self.line,
-            lexeme: "".to_string(),
-            literal: None,
+            lexeme: text,
         });
     }
     
     fn advance(&mut self) -> char {
-        todo!()
+        let c = self.source.as_bytes()[self.current];
+        self.current += 1;
+
+        c as char
     }
 
     fn is_at_end(&self) -> bool {
@@ -84,7 +108,7 @@ pub enum TokenType {
     Plus,
     SemiColon,
     Slash,
-    Start,
+    Star,
 
     // One or two chars
     Bang,

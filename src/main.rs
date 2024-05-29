@@ -82,4 +82,6 @@ fn main() {
 // 2) structure of tokens and token type are defined
 // 3) started to scan tokens and manage errors
 // 4) tokenizing one and two chars
-// part 4 done
+// 5) tokenized string literals
+// 6) tokenized numbers into floats(64 bits) and integers(64 bits)
+// part 6 done

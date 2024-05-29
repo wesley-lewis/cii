@@ -1,5 +1,9 @@
 #![allow(warnings)]
 
+fn is_digit(ch: char) -> bool {
+    return ch as u8 >= '0' as u8 && ch as u8 <= '9' as u8;
+}
+
 pub struct Scanner {
     source: String,
     tokens: Vec<Token>,
@@ -39,10 +43,10 @@ impl Scanner {
 
         if errors.len() > 0 {
             let mut joined = "".to_string();
-            errors.iter().map(|msg| {
-                joined.push_str(&msg);
+            for error in errors {
+                joined.push_str(&error);
                 joined.push_str("\n");
-            });
+            }
 
             return Err(joined);
         }
@@ -112,10 +116,71 @@ impl Scanner {
             },
             ' ' | '\r' | '\t' => {},
             '\n' => self.line += 1,
-           '+' => self.add_token(TokenType::Plus),
+            '"' => self.string()?,
+            '+' => self.add_token(TokenType::Plus),
             '-' => self.add_token(TokenType::Minus),
+            c => {
+                if is_digit(c) {
+                    self.number();
+                }else {
+                    return Err(format!("unrecognised char at line {}: {}", self.line, c));
+                }
+            }
             _ => return Err(format!("unrecognised char at line {}: {}", self.line, c)),
         }
+
+        Ok(())
+    }
+
+    fn number(&mut self) -> Result<(), String> {
+        while is_digit(self.peek()) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && is_digit(self.peek_next()) {
+            self.advance();
+
+            while is_digit(self.peek()) {
+                self.advance();
+            }
+
+            let substring = &self.source[self.start .. self.current];
+            let value = match substring.parse::<f64>() {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Couldn't parse number at line {}: {}", self.line, e)),
+            };
+
+            self.add_token_lit(TokenType::Number, Some(LiteralValue::FValue(value)));
+        } else {
+            let substring = &self.source[self.start .. self.current];
+            let value = match substring.parse::<i64>() {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Couldn't parse number at line {}: {}", self.line, e)),
+            };
+
+            self.add_token_lit(TokenType::Number, Some(LiteralValue::IntValue(value)));
+        }
+
+        Ok(())
+    }
+
+    fn string(&mut self) -> Result<(), String> {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            return Err(String::from("Unterminated string"));
+        }
+
+        self.advance();
+
+        let value = &self.source[self.start + 1 .. self.current - 1];
+
+        self.add_token_lit(TokenType::StringLit, Some(LiteralValue::StringValue(value.to_string())));
 
         Ok(())
     }
@@ -125,7 +190,7 @@ impl Scanner {
             return false;
         }
 
-        if self.source.as_bytes()[self.current] as char != ch {
+        if self.source.chars().nth(self.current).unwrap() != ch {
             return false;
         }else {
             self.current += 1;
@@ -138,7 +203,11 @@ impl Scanner {
     }
 
     fn add_token_lit(&mut self, token_type: TokenType, literal: Option<LiteralValue>) {
-        let text = self.source[self.start..self.current].to_string();
+        let mut text = String::new();
+        let lit = self.source[self.start .. self.current]
+            .chars()
+            .map(|ch| text.push(ch));
+
         self.tokens.push(Token {
             token_type,
             literal,
@@ -148,10 +217,18 @@ impl Scanner {
     }
     
     fn advance(&mut self) -> char {
-        let c = self.source.as_bytes()[self.current];
+        let c = self.source.chars().nth(self.current).unwrap();
         self.current += 1;
 
-        c as char
+        c
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() {
+            return '\0';
+        }
+
+        self.source.chars().nth(self.current + 1).unwrap()
     }
 
     fn peek(&self) -> char {
@@ -159,7 +236,7 @@ impl Scanner {
             return '\0';
         }
 
-        self.source.as_bytes()[self.current] as char
+        self.source.chars().nth(self.current).unwrap()
     }
 
     fn is_at_end(&self) -> bool {
@@ -194,7 +271,7 @@ pub enum TokenType {
 
     // Literals
     Identifier,
-    String,
+    StringLit,
     Number,
 
     // Keywords
@@ -264,12 +341,13 @@ impl Token {
 mod tests {
     use crate::Scanner;
     use crate::TokenType;
+    use crate::LiteralValue;
 
     #[test]
     fn handle_one_char_token() {
         let source = "(( )) }{";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        scanner.scan_tokens().unwrap();
 
         assert_eq!(scanner.tokens.len(), 7);
         assert_eq!(scanner.tokens[0].token_type, TokenType::LeftParen);
@@ -285,7 +363,7 @@ mod tests {
     fn handle_two_char_token() {
         let source = "! != == >=";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens();
+        scanner.scan_tokens().unwrap();
 
         assert_eq!(scanner.tokens.len(), 5);
         assert_eq!(scanner.tokens[0].token_type, TokenType::Bang);
@@ -293,5 +371,71 @@ mod tests {
         assert_eq!(scanner.tokens[2].token_type, TokenType::EqualEqual);
         assert_eq!(scanner.tokens[3].token_type, TokenType::GreaterEqual);
         assert_eq!(scanner.tokens[4].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn handle_string_literal() {
+        let source = r#""ABC""#; // escape sequence comes in between while parsing.
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().unwrap();
+
+        assert_eq!(scanner.tokens.len(), 2);
+        assert_eq!(scanner.tokens[0].token_type, TokenType::StringLit);
+        match scanner.tokens[0].literal.as_ref().unwrap() {
+            LiteralValue::StringValue(val) => assert_eq!(val, "ABC"),
+            _ => panic!("incorrect literal type"),
+        }
+    }
+
+    #[test]
+    fn handle_string_unterminated() {
+        let source = r#""ABC"#; // escape sequence comes in between while parsing.
+        let mut scanner = Scanner::new(source);
+        let result = scanner.scan_tokens();
+
+        match result {
+            Err(_) => (),
+            _ => panic!("should have failed"),
+        }
+    }
+
+    #[test]
+    fn handle_string_lit_multiline() {
+        let source = "\"ABC\ndef\"";
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().unwrap();
+        assert_eq!(scanner.tokens.len(), 2);
+        match scanner.tokens[0].literal.as_ref().unwrap() {
+            LiteralValue::StringValue(val) => assert_eq!(val, "ABC\ndef"),
+            _ => panic!("incorrect literal type"),
+        }
+    }
+
+    #[test]
+    fn handle_number() {
+        let source = "123.123\n321.5\n45";
+        let mut scanner = Scanner::new(source);
+        scanner.scan_tokens().unwrap();
+
+        assert_eq!(scanner.tokens.len(), 4);
+        for i in 0..3 {
+            assert_eq!(scanner.tokens[i].token_type, TokenType::Number);
+        }
+
+        match scanner.tokens[0].literal.as_ref().unwrap() {
+            LiteralValue::FValue(val) => assert_eq!(*val, 123.123),
+            _ => panic!("incorrect value"),
+        }
+
+        match scanner.tokens[1].literal.as_ref().unwrap() {
+            LiteralValue::FValue(val) => assert_eq!(*val, 321.5),
+            _ => panic!("incorrect value"),
+        }
+
+        match scanner.tokens[2].literal.as_ref().unwrap() {
+            LiteralValue::IntValue(val) => assert_eq!(*val, 45),
+            _ => panic!("incorrect value"),
+        }
+        assert_eq!(scanner.tokens[0].token_type, TokenType::Number);
     }
 }

@@ -1,4 +1,5 @@
 mod scanner;
+mod expr;
 use crate::scanner::*;
 
 use std::env;
@@ -84,4 +85,6 @@ fn main() {
 // 4) tokenizing one and two chars
 // 5) tokenized string literals
 // 6) tokenized numbers into floats(64 bits) and integers(64 bits)
-// part 6 done
+// 7) tokenized keywords and identifiers, defined all language keywords
+// 8) created AST and printed it out
+// part 8 done

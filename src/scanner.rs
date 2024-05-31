@@ -368,9 +368,9 @@ pub enum LiteralValue {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    token_type: TokenType,
+    pub token_type: TokenType,
     pub lexeme: String,
-    literal: Option<LiteralValue>,
+    pub literal: Option<LiteralValue>,
     line_num: usize,
 }
 

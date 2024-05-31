@@ -1,5 +1,6 @@
 mod scanner;
 mod expr;
+mod parser;
 use crate::scanner::*;
 
 use std::env;
@@ -87,4 +88,5 @@ fn main() {
 // 6) tokenized numbers into floats(64 bits) and integers(64 bits)
 // 7) tokenized keywords and identifiers, defined all language keywords
 // 8) created AST and printed it out
-// part 8 done
+// 9) simple mathematical parser done. Still need to test it out though
+// part 9 done

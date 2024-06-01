@@ -49,6 +49,24 @@ impl LiteralValue {
             _ => panic!("could not create LiteralValue from {:?}", token)
         }
     }
+
+    pub fn from_bool(b: bool) -> Self {
+        if b {
+            Self::True
+        }else {
+            Self::False
+        }
+    }
+
+    pub fn is_falsy(&self) -> Self {
+        match self {
+            Self::Number(x) => if *x == 0.0 { Self::True } else { Self::False }, 
+            Self::StringValue(s) => if s.len() == 0 { Self::True } else { Self::False },
+            Self::True => Self::False,
+            Self::False => Self::True,
+            Self::Nil => Self::True
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -88,6 +106,50 @@ impl Expr {
                 let operator_str = operator.lexeme.clone();
                 let right_str = right.to_string();
                 format!("({} {})", operator_str, right_str)
+            }
+        }
+    }
+
+    pub fn evaluate(&self) -> Result<LiteralValue, String> {
+        use crate::scanner::TokenType::*;
+
+        match self {
+            Expr::Literal { value } => Ok(value.clone()),
+            Expr::Grouping { expression } => expression.evaluate(),
+            Expr::Unary { operator, right } => {
+                let right = (*right).evaluate()?;
+
+                match (&right, operator.token_type) {
+                    (LiteralValue::Number(x), Minus) => return Ok(LiteralValue::Number(-x)),
+                    (_, Minus) => return Err(format!("minus not implemented for {}", right.to_string())),
+                    (any, Bang) => Ok(any.is_falsy()),
+                    _ => todo!()
+                }
+            },
+            Expr::Binary { left, operator, right } => {
+                let left: LiteralValue = left.evaluate()?;
+                let right = right.evaluate()?;
+
+                match (&left, operator.token_type, &right) {
+                    (LiteralValue::Number(x), Plus, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x + y)),
+                    (LiteralValue::Number(x), Minus, LiteralValue::Number(y)) => Ok(LiteralValue::Number(x - y)),
+                    (LiteralValue::Number(x), Star, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x * y)),
+                    (LiteralValue::Number(x), Slash, LiteralValue::Number(y)) => Ok(LiteralValue::Number(x / y)),
+                    (LiteralValue::Number(x), Greater, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x > y)),
+                    (LiteralValue::Number(x), GreaterEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x >= y)),
+                    (LiteralValue::Number(x), Less, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x < y)),
+                    (LiteralValue::Number(x), LessEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x <= y)),
+                    (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
+                    (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
+
+                    (LiteralValue::StringValue(_), op, LiteralValue::Number(_)) => Err(format!("'{}' is not defined for string and number", op)),
+                    (LiteralValue::Number(_), op, LiteralValue::StringValue(_)) => Err(format!("'{}' is not defined for number and string", op)),
+
+                    (LiteralValue::StringValue(s1), Plus, LiteralValue::StringValue(s2)) => Ok(LiteralValue::StringValue(format!("{}{}", s1,s2))),
+                    (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
+                    (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
+                    _ => todo!()
+                }
             }
         }
     }

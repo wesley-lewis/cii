@@ -1,6 +1,8 @@
 mod scanner;
 mod expr;
 mod parser;
+use parser::Parser;
+
 use crate::scanner::*;
 
 use std::env;
@@ -23,9 +25,11 @@ fn run_file(path: &str) -> Result<(), String> {
 fn run(contents: &str) -> Result<(), String> {
     let mut scanner = Scanner::new(contents);
     let tokens = scanner.scan_tokens()?;
-    for token in tokens {
-        println!("{:?}", token);
-    }
+    
+    let mut parser = Parser::new(tokens);
+    let parsed_expr = parser.parse()?;
+    let result = parsed_expr.evaluate()?;
+    println!("{}", result.to_string());
 
     Ok(())
 }
@@ -51,7 +55,7 @@ fn run_prompt() -> Result<(), String>{
             return Err(e.to_string());
         }
     }
-        println!("ECHO: {}", buffer);
+        print!("ECHO: ");
         match run(&buffer) {
             Ok(_) => {},
             Err(e) => eprintln!("ERROR: {}", e),
@@ -89,4 +93,6 @@ fn main() {
 // 7) tokenized keywords and identifiers, defined all language keywords
 // 8) created AST and printed it out
 // 9) simple mathematical parser done. Still need to test it out though
-// part 9 done
+// 10) tested the above and its parsing expressions and conditionals
+// 11) evaluating expressions, numbers and string comparison evaluated
+// part 11 done

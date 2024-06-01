@@ -44,7 +44,7 @@ fn get_keywords_hashmap() -> HashMap<&'static str, TokenType> {
 
 pub struct Scanner {
     source: String,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     keywords: HashMap<&'static str, TokenType>,
     start: usize,
     current: usize,
@@ -259,10 +259,7 @@ impl Scanner {
     }
 
     fn add_token_lit(&mut self, token_type: TokenType, literal: Option<LiteralValue>) {
-        let mut text = String::new();
-        let lit = self.source[self.start .. self.current]
-            .chars()
-            .map(|ch| text.push(ch));
+        let text = self.source[self.start .. self.current].to_string();
 
         self.tokens.push(Token {
             token_type,

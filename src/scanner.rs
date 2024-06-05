@@ -368,7 +368,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub literal: Option<LiteralValue>,
-    line_num: usize,
+    pub line_num: usize,
 }
 
 impl Token {

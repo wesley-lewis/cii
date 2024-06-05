@@ -1,9 +1,13 @@
 mod scanner;
 mod expr;
 mod parser;
+mod interpreter;
+mod stmt;
+
 use parser::Parser;
 
 use crate::scanner::*;
+use crate::interpreter::Interpreter;
 
 use std::env;
 use std::io::Write;
@@ -12,9 +16,10 @@ use std::io;
 use std::process::exit;
 
 fn run_file(path: &str) -> Result<(), String> {
+    let mut interpreter = Interpreter::new();
     match fs::read_to_string(path) {
         Ok(contents) => {
-            return run(&contents);
+            return run(&mut interpreter, &contents);
         },
         Err(e) => {
             return Err(e.to_string());
@@ -22,41 +27,41 @@ fn run_file(path: &str) -> Result<(), String> {
     }
 }
 
-fn run(contents: &str) -> Result<(), String> {
+fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
     let mut scanner = Scanner::new(contents);
     let tokens = scanner.scan_tokens()?;
     
     let mut parser = Parser::new(tokens);
-    let parsed_expr = parser.parse()?;
-    let result = parsed_expr.evaluate()?;
-    println!("{}", result.to_string());
+    let stmts = parser.parse()?;
+    interpreter.interpret(stmts)?;
 
     Ok(())
 }
 
 fn run_prompt() -> Result<(), String>{
+    let mut interpreter: Interpreter = Interpreter::new();
     loop {
-    print!("> ");
-    match io::stdout().flush() { // need to flush to stdout, else it doesn't print to the terminal
-        Ok(_) => {},
-        Err(_) => return Err("couldn't flush stdout".to_string()),
-    }
-
-    let mut buffer = String::new();
-    let stdin = io::stdin();
-
-    match stdin.read_line(&mut buffer) {
-        Ok(n) => {
-            if n == 0 {
-                return Ok(());
-            }
-        },
-        Err(e) => {
-            return Err(e.to_string());
+        print!("> ");
+        match io::stdout().flush() { // need to flush to stdout, else it doesn't print to the terminal
+            Ok(_) => {},
+            Err(_) => return Err("couldn't flush stdout".to_string()),
         }
-    }
+
+        let mut buffer = String::new();
+        let stdin = io::stdin();
+
+        match stdin.read_line(&mut buffer) {
+            Ok(n) => {
+                if n == 0 {
+                    return Ok(());
+                }
+            },
+            Err(e) => {
+                return Err(e.to_string());
+            }
+        }
         print!("ECHO: ");
-        match run(&buffer) {
+        match run(&mut interpreter, &buffer) {
             Ok(_) => {},
             Err(e) => eprintln!("ERROR: {}", e),
         }
@@ -95,4 +100,6 @@ fn main() {
 // 9) simple mathematical parser done. Still need to test it out though
 // 10) tested the above and its parsing expressions and conditionals
 // 11) evaluating expressions, numbers and string comparison evaluated
-// part 11 done
+// 12) interpreting arithmetic, basic arithmetic calculator is ready!
+// 13) print expression working
+// part 13 done

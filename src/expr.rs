@@ -1,8 +1,7 @@
-#![allow(warnings)]
 use crate::Token;
 use crate::scanner;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum LiteralValue {
     Number(f32),
     StringValue(String),
@@ -38,6 +37,16 @@ impl LiteralValue {
         }
     }
 
+    pub fn to_type(&self) -> &str {
+        match self {
+            Self::Number(_) => "Number",
+            Self::StringValue(_) => "String",
+            Self::True => "Boolean",
+            Self::False => "Boolean",
+            Self::Nil => "Nil",
+        }
+    }
+
     pub fn from_token(token: Token) -> LiteralValue {
         use crate::scanner::TokenType::*;
         match token.token_type {
@@ -69,7 +78,7 @@ impl LiteralValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Binary {
         left: Box<Expr>,
@@ -121,9 +130,9 @@ impl Expr {
 
                 match (&right, operator.token_type) {
                     (LiteralValue::Number(x), Minus) => return Ok(LiteralValue::Number(-x)),
-                    (_, Minus) => return Err(format!("minus not implemented for {}", right.to_string())),
+                    (_, Minus) => return Err(format!("minus not implemented for {}", right.to_type())),
                     (any, Bang) => Ok(any.is_falsy()),
-                    _ => todo!()
+                    (_, ttype) => Err(format!("{} is not a valid unary operator", ttype)),
                 }
             },
             Expr::Binary { left, operator, right } => {
@@ -139,16 +148,21 @@ impl Expr {
                     (LiteralValue::Number(x), GreaterEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x >= y)),
                     (LiteralValue::Number(x), Less, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x < y)),
                     (LiteralValue::Number(x), LessEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x <= y)),
-                    (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
-                    (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
+                    // (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
+                    // (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
 
                     (LiteralValue::StringValue(_), op, LiteralValue::Number(_)) => Err(format!("'{}' is not defined for string and number", op)),
                     (LiteralValue::Number(_), op, LiteralValue::StringValue(_)) => Err(format!("'{}' is not defined for number and string", op)),
 
                     (LiteralValue::StringValue(s1), Plus, LiteralValue::StringValue(s2)) => Ok(LiteralValue::StringValue(format!("{}{}", s1,s2))),
-                    (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
-                    (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
-                    _ => todo!()
+                    // (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
+                    // (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
+
+                    (LiteralValue::StringValue(s1), Greater, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 > s2)),
+                    (LiteralValue::StringValue(s1), GreaterEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 >= s2)),
+                    (LiteralValue::StringValue(s1), Less, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 < s2)),
+                    (LiteralValue::StringValue(s1), LessEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 <= s2)),
+                    (x, ttype, y) => Err(format!("{} is not implemented for operands {:?} and {:?}", ttype, x, y))
                 }
             }
         }

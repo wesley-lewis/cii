@@ -1,5 +1,6 @@
 use crate::Token;
 use crate::scanner;
+use crate::environment::Environment;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum LiteralValue {
@@ -95,6 +96,9 @@ pub enum Expr {
         operator: Token,
         right: Box<Expr>,
     },
+    Variable {
+        name: Token,
+    }
 }
 
 impl Expr {
@@ -115,18 +119,25 @@ impl Expr {
                 let operator_str = operator.lexeme.clone();
                 let right_str = right.to_string();
                 format!("({} {})", operator_str, right_str)
-            }
+            },
+            Expr::Variable { name } => format!("(var {})", name.lexeme),
         }
     }
 
-    pub fn evaluate(&self) -> Result<LiteralValue, String> {
+    pub fn evaluate(&self, environment: &Environment) -> Result<LiteralValue, String> {
         use crate::scanner::TokenType::*;
 
         match self {
+            Expr::Variable{ name } => {
+                match environment.get(name.lexeme.as_ref()) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(format!("Variable '{}' has not been declared", &name.lexeme))
+                }
+            },
             Expr::Literal { value } => Ok(value.clone()),
-            Expr::Grouping { expression } => expression.evaluate(),
+            Expr::Grouping { expression } => expression.evaluate(environment),
             Expr::Unary { operator, right } => {
-                let right = (*right).evaluate()?;
+                let right = (*right).evaluate(environment)?;
 
                 match (&right, operator.token_type) {
                     (LiteralValue::Number(x), Minus) => return Ok(LiteralValue::Number(-x)),
@@ -136,8 +147,8 @@ impl Expr {
                 }
             },
             Expr::Binary { left, operator, right } => {
-                let left: LiteralValue = left.evaluate()?;
-                let right = right.evaluate()?;
+                let left: LiteralValue = left.evaluate(environment)?;
+                let right = right.evaluate(environment)?;
 
                 match (&left, operator.token_type, &right) {
                     (LiteralValue::Number(x), Plus, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x + y)),
@@ -164,7 +175,7 @@ impl Expr {
                     (LiteralValue::StringValue(s1), LessEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 <= s2)),
                     (x, ttype, y) => Err(format!("{} is not implemented for operands {:?} and {:?}", ttype, x, y))
                 }
-            }
+            },
         }
     }
 

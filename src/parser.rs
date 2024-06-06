@@ -22,10 +22,13 @@ impl Parser {
         let mut errs = vec![];
 
         while !self.is_at_end() {
-            let stmt = self.statement();
+            let stmt = self.declaration();
             match stmt {
                 Ok(s) => stmts.push(s),
-                Err(e) => errs.push(e),
+                Err(e) => {
+                    errs.push(e);
+                    self.synchronize();
+                }
             }
         }
 
@@ -34,6 +37,34 @@ impl Parser {
         }
 
         Ok(stmts) 
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, String> {
+        if self.match_token(&Var) {
+            match self.var_declaration() {
+                Ok(stmt) => Ok(stmt),
+                Err(e) => {
+                    Err(e)
+                }, 
+            }
+        } else {
+            self.statement()
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, String> {
+        let token = self.consume(Identifier, "Expected variable name")?;
+
+        let initializer;
+        if self.match_token(&Equal) {
+            initializer = self.expression()?;
+        }else {
+            initializer = Expr::Literal { value: LiteralValue::Nil };
+        }
+
+        self.consume(SemiColon, "Expected ';' after variable declaration")?;
+
+        Ok( Stmt::Var { name: token, initializer: initializer } )
     }
 
     fn statement(&mut self) -> Result<Stmt, String> {
@@ -140,54 +171,56 @@ impl Parser {
         }
     }
 
-    fn primary(&mut self) -> Result<Expr, String> {
-        if self.match_token(&LeftParen) {
-            let expr = self.expression()?;
-            self.consume(RightParen, "Expected ')'")?;
-            Ok(
-                Grouping {
-                    expression: Box::from(expr),
-            })
-        }else {
-            let token = self.peek();
-            self.advance();
-            Ok(
-                Literal{
-                    value: LiteralValue::from_token(token),
-            })
-        }
-    }
-
     // fn primary(&mut self) -> Result<Expr, String> {
-    //     let token = self.peek();
-    //
-    //     let result;
-    //     match token.token_type {
-    //         LeftParen =>  {
-    //             let expr = self.expression()?;
-    //             self.consume(RightParen, "Expected ')'");
-    //             result = Grouping {
+    //     if self.match_token(&LeftParen) {
+    //         let expr = self.expression()?;
+    //         self.consume(RightParen, "Expected ')'")?;
+    //         Ok(
+    //             Grouping {
     //                 expression: Box::from(expr),
-    //             };
-    //         },
-    //         False | True | Nil | Number | StringLit => {
-    //             // possible bug in future
-    //             // self.advance();
-    //             result = Literal {
-    //                 value: expr::LiteralValue::from_token(token),
-    //             };
-    //         },
-    //         _ => {
-    //             panic!("should not reach over here: {:?}", token);
-    //         }
+    //         })
+    //     }else {
+    //         let token = self.peek();
+    //         self.advance();
+    //         Ok(
+    //             Literal{
+    //                 value: LiteralValue::from_token(token),
+    //         })
     //     }
-    //
-    //     // if we get here it means we correctl matched on a token and we need to advance
-    //     // the pointer to consume it
-    //     self.advance();
-    //
-    //     Ok(result)
     // }
+
+    fn primary(&mut self) -> Result<Expr, String> {
+        let token = self.peek();
+
+        let result;
+        match token.token_type {
+            LeftParen =>  {
+                self.advance();
+                let expr = self.expression()?;
+                self.consume(RightParen, "Expected ')'")?;
+                result = Grouping {
+                    expression: Box::from(expr),
+                };
+            },
+            False | True | Nil | Number | StringLit => {
+                // possible bug in future
+                self.advance();
+                result = Literal {
+                    value: LiteralValue::from_token(token),
+                };
+            },
+            Identifier => {
+                println!("Primary");
+                self.advance();
+                result = Variable { name: self.previous() }
+            }
+            _ => {
+                return Err("Expected expression".to_string());
+            }
+        }
+
+        Ok(result)
+    }
 
     fn match_token(&mut self, typ: &TokenType) -> bool {
         if self.is_at_end() {
@@ -202,12 +235,13 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<(), String> {
+    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<Token, String> {
         let token = self.peek();
         if token.token_type == token_type {
             self.advance();
+            let token = self.previous();
 
-            Ok(())
+            Ok(token)
         }else {
             Err(msg.to_string())
         }

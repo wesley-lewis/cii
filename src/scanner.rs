@@ -1,4 +1,3 @@
-#![allow(warnings)]
 use std::collections::HashMap;
 
 fn is_digit(ch: char) -> bool {

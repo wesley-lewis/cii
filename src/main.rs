@@ -3,6 +3,7 @@ mod expr;
 mod parser;
 mod interpreter;
 mod stmt;
+mod environment;
 
 use parser::Parser;
 
@@ -102,4 +103,6 @@ fn main() {
 // 11) evaluating expressions, numbers and string comparison evaluated
 // 12) interpreting arithmetic, basic arithmetic calculator is ready!
 // 13) print expression working
-// part 13 done
+// 14) declaring variables and storing them into the environment also evaluating expressions using
+//     variable
+// part 14 done

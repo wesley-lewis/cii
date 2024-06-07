@@ -156,8 +156,6 @@ impl Scanner {
             ' ' | '\r' | '\t' => {},
             '\n' => self.line += 1,
             '"' => self.string()?,
-            '+' => self.add_token(TokenType::Plus),
-            '-' => self.add_token(TokenType::Minus),
             c => {
                 if is_digit(c) {
                     self.number()?;
@@ -168,7 +166,6 @@ impl Scanner {
                     return Err(format!("unrecognised char at line {}: {}", self.line, c));
                 }
             }
-            _ => return Err(format!("unrecognised char at line {}: {}", self.line, c)),
         }
 
         Ok(())

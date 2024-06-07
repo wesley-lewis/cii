@@ -61,7 +61,7 @@ fn run_prompt() -> Result<(), String>{
                 return Err(e.to_string());
             }
         }
-        print!("ECHO: ");
+        print!("ECHO: {}", &buffer);
         match run(&mut interpreter, &buffer) {
             Ok(_) => {},
             Err(e) => eprintln!("ERROR: {}", e),
@@ -106,4 +106,6 @@ fn main() {
 // 14) declaring variables and storing them into the environment also evaluating expressions using
 //     variable
 // 15) Variable assignment and reassignment
-// part 15 done
+// 16) handling lifetimes is difficult :)
+// 17) scaffolding for `Scope` ready
+// part 17 done

@@ -325,6 +325,12 @@ mod tests {
 
     #[test]
     fn test_addition() {
+        let print = Token::new(
+            TokenType::Print,
+            "".to_string(),
+            None,
+            0,
+        );
         let one = Token::new(
             TokenType::Number,
             String::from("1"),
@@ -349,32 +355,33 @@ mod tests {
             None,
             0,
         );
-        let mut parser = Parser::new(vec![one, plus, two, semicolon]);
+        let mut parser = Parser::new(vec![print, one, plus, two, semicolon]);
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
+        println!("test addition: {}", string_expr);
         assert_eq!(string_expr, "(+ 1 2)");
     }
 
     #[test]
     fn test_comparison() {
-        let source = "1 + 2 == 3 + 4";
+        let source = "1 + 2 == 3 + 4;";
         let mut scanner = Scanner::new(source);
         scanner.scan_tokens().unwrap();
         let mut parser = Parser::new(scanner.tokens);
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
 
         assert_eq!(string_expr, "(== (+ 1 2) (+ 3 4))");
     }
 
     #[test]
     fn test_eq_with_paren() {
-        let source = "1 == (2 + 2)";
+        let source = "1 == (2 + 2);";
         let mut scanner = Scanner::new(source);
         scanner.scan_tokens().unwrap();
         let mut parser = Parser::new(scanner.tokens);
         let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr.to_string();
+        let string_expr = parsed_expr[0].to_string();
 
         assert_eq!(string_expr, "(== 1 (group (+ 2 2)))");
     }

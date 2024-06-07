@@ -136,15 +136,13 @@ impl Expr {
 
         match self {
             Expr::Assign { name, value } => {
-                let get_value = environment.get(&name.lexeme);
-                match get_value {
-                    Some(_) => {
-                        let new_value = (*value).evaluate(environment)?;
-                        environment.define(name.lexeme.clone(), new_value.clone());
-                        Ok(new_value)
-                    }
-                    None => Err(format!("variable {} has not been declared", name.lexeme))
+                let new_value = (*value).evaluate(environment)?;
+                let assign_success = environment.assign(&name.lexeme, new_value.clone());
+                if assign_success {
+                    return Ok(new_value);
                 }
+
+                Err(format!("variable {} has not been declared", name.lexeme))
             },
             Expr::Variable{ name } => {
                 match environment.get(name.lexeme.as_ref()) {

@@ -60,7 +60,7 @@ impl Parser {
             initializer = self.expression()?;
         }else {
             initializer = Expr::Literal { value: LiteralValue::Nil };
-        }
+       }
 
         self.consume(SemiColon, "Expected ';' after variable declaration")?;
 
@@ -70,9 +70,50 @@ impl Parser {
     fn statement(&mut self) -> Result<Stmt, String> {
         if self.match_token(&Print) {
             self.print_statement()
-        }else {
+        }else if self.match_token(&LeftBrace) {
+            self.block_statement()
+        }else if self.match_token(&If) {
+            self.if_statement()
+        }
+        else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '('.")?;
+        let predicate = self.expression()?;
+        self.consume(RightParen, "Expected ')'")?;
+
+        let then = self.statement()?;
+
+        let els = if self.match_token(&Else) {
+            let stm = self.statement()?;
+            Some(Box::from(stm))
+        }else {
+            None
+        };
+
+        Ok(Stmt::IfStmt { 
+            predicate, 
+            then: Box::from(then), 
+            els 
+        })
+    }
+
+    fn block_statement(&mut self) -> Result<Stmt, String> {
+        let mut statements = vec![];
+
+        while !self.check(RightBrace) && !self.is_at_end() {
+            let decl = self.declaration()?;
+            statements.push(decl);
+        }
+
+        self.consume(RightBrace, "Expected '}'.")?;
+
+        Ok(Stmt::Block { 
+            statements 
+        })
     }
 
     fn print_statement(&mut self) -> Result<Stmt, String> {
@@ -231,7 +272,6 @@ impl Parser {
                 };
             },
             Identifier => {
-                println!("Primary");
                 self.advance();
                 result = Variable { name: self.previous() }
             }
@@ -241,6 +281,10 @@ impl Parser {
         }
 
         Ok(result)
+    }
+
+    fn check(&mut self, typ: TokenType) -> bool {
+        self.peek().token_type == typ
     }
 
     fn match_token(&mut self, typ: &TokenType) -> bool {

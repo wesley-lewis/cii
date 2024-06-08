@@ -77,6 +77,22 @@ impl LiteralValue {
             Self::Nil => Self::True
         }
     }
+
+    pub fn is_truthy(&self) -> Self {
+        match self {
+            Self::Number(x) => {
+                if *x == 0.0 { 
+                    Self::False 
+                } else { 
+                    Self::True 
+                }
+            }, 
+            Self::StringValue(s) => if s.len() == 0 { Self::False } else { Self::True },
+            Self::True => Self::True,
+            Self::False => Self::False,
+            Self::Nil => Self::False
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -175,15 +191,15 @@ impl Expr {
                     (LiteralValue::Number(x), GreaterEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x >= y)),
                     (LiteralValue::Number(x), Less, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x < y)),
                     (LiteralValue::Number(x), LessEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x <= y)),
-                    // (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
-                    // (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
+                    (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
+                    (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
 
                     (LiteralValue::StringValue(_), op, LiteralValue::Number(_)) => Err(format!("'{}' is not defined for string and number", op)),
                     (LiteralValue::Number(_), op, LiteralValue::StringValue(_)) => Err(format!("'{}' is not defined for number and string", op)),
 
                     (LiteralValue::StringValue(s1), Plus, LiteralValue::StringValue(s2)) => Ok(LiteralValue::StringValue(format!("{}{}", s1,s2))),
-                    // (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
-                    // (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
+                    (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
+                    (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
 
                     (LiteralValue::StringValue(s1), Greater, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 > s2)),
                     (LiteralValue::StringValue(s1), GreaterEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 >= s2)),

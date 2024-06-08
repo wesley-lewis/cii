@@ -108,4 +108,5 @@ fn main() {
 // 15) Variable assignment and reassignment
 // 16) handling lifetimes is difficult :)
 // 17) scaffolding for `Scope` ready
-// part 17 done
+// 18) Scope is working good! Needed Rc for environment.
+// part 18 done

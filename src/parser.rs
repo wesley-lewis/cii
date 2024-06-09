@@ -137,7 +137,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, String> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if self.match_token(&Equal) {
             let _equals = self.previous();
@@ -152,6 +152,40 @@ impl Parser {
                 }
                 _ => return Err("invalid assignment target.".to_string()),
             }
+        }
+
+        Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, String> {
+        let mut expr = self.and()?;
+        
+        while self.match_token(&Or) {
+            let operator = self.previous();
+            let right = self.and()?;
+
+            expr = Logical {
+                left: Box::new(expr),
+                operator: operator,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, String> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(&And) {
+            let operator = self.previous();
+            let right = self.equality()?;
+
+            expr = Logical {
+                left: Box::new(expr),
+                operator: operator,
+                right: Box::new(right)
+            };
         }
 
         Ok(expr)

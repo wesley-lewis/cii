@@ -109,4 +109,6 @@ fn main() {
 // 16) handling lifetimes is difficult :)
 // 17) scaffolding for `Scope` ready
 // 18) Scope is working good! Needed Rc for environment.
-// part 18 done
+// 19) If-else statements parsed and evaluated!
+// 20) Logical operators evaluated
+// part 20 done

@@ -31,7 +31,7 @@ impl LiteralValue {
     pub fn to_string(&self) -> String {
         match self {
             Self::Number(x) => x.to_string(),
-            Self::StringValue(x) => x.clone(),
+            Self::StringValue(x) => format!("\"{}\"", &x),
             Self::True => "true".to_string(),
             Self::False => "false".to_string(),
             Self::Nil => "nil".to_string(),
@@ -112,6 +112,11 @@ pub enum Expr {
     Literal {
         value: LiteralValue,
     },
+    Logical {
+        left: Box<Expr>,
+        operator: Token,
+        right: Box<Expr>,
+    },
     Unary {
         operator: Token,
         right: Box<Expr>,
@@ -138,6 +143,7 @@ impl Expr {
             Expr::Literal { value } => {
                 format!("{}", value.to_string())
             },
+            Expr::Logical { left, operator, right } => format!("({} {} {})", operator.to_string(), left.to_string(), right.to_string()),
             Expr::Unary {operator, right } => {
                 let operator_str = operator.lexeme.clone();
                 let right_str = right.to_string();
@@ -167,6 +173,29 @@ impl Expr {
                 }
             },
             Expr::Literal { value } => Ok(value.clone()),
+            Expr::Logical { left, operator, right } => {
+                match operator.token_type {
+                    Or => {
+                        let lhs_value = left.evaluate(environment)?;
+                        let lhs_true = lhs_value.is_truthy();
+                        if lhs_true == LiteralValue::True {
+                            return Ok(lhs_value);
+                        }else {
+                            right.evaluate(environment)
+                        }
+                    },
+                    And => {
+                        let lhs_value = left.evaluate(environment)?;
+                        let lhs_true = lhs_value.is_truthy();
+                        if lhs_true == LiteralValue::False {
+                            return Ok(lhs_true);
+                        }else {
+                            right.evaluate(environment)
+                        }
+                    },
+                    ttype => Err(format!("Invalid token in logical expression: {}", ttype)),
+                }
+            }
             Expr::Grouping { expression } => expression.evaluate(environment),
             Expr::Unary { operator, right } => {
                 let right = (*right).evaluate(environment)?;

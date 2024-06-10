@@ -1,0 +1,7 @@
+var times = 10.0;
+var product = 1.0;
+while(times) {
+	product = product * times;
+	times = times - 1.0;
+	print product;
+}

@@ -15,7 +15,6 @@ pub enum LiteralValue {
 
 fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
     match literal {
-        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
         Some(scanner::LiteralValue::FValue(x)) => x as f32,
         _ => panic!("could not unwrap as f32")
     }
@@ -24,7 +23,6 @@ fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
 fn unwrap_as_string(literal: Option<scanner::LiteralValue>) -> String {
     match literal {
         Some(scanner::LiteralValue::StringValue(s)) => s.clone(),
-        Some(scanner::LiteralValue::IdentifierValue(s)) => s.clone(),
         _ => panic!("could not unwrap as string")
     }
 }
@@ -242,6 +240,7 @@ impl Expr {
         }
     }
 
+    #[allow(warnings)]
     pub fn print(&self) {
         println!("{}", self.to_string());
     }

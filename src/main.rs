@@ -5,6 +5,9 @@ mod interpreter;
 mod stmt;
 mod environment;
 
+#[cfg(test)]
+mod tests;
+
 use parser::Parser;
 
 use crate::scanner::*;
@@ -31,7 +34,7 @@ fn run_file(path: &str) -> Result<(), String> {
 fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
     let mut scanner = Scanner::new(contents);
     let tokens = scanner.scan_tokens()?;
-    
+
     let mut parser = Parser::new(tokens);
     let stmts = parser.parse()?;
     interpreter.interpret(stmts.iter().collect())?;
@@ -113,4 +116,5 @@ fn main() {
 // 20) Logical operators evaluated
 // 21) used Rc & RefCell to modify environment within another block. Solved a bug. Rc<RefCell>
 //     pattern is important when there are multiple modifiers to the data
-// part 21 done
+// 22) resolved all warnings. Created integration tests
+// part 22 done

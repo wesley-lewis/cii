@@ -16,6 +16,7 @@ impl Interpreter {
 
     pub fn interpret(&mut self, stmts: Vec<&Stmt>) -> Result<(), String> {
         use crate::expr::LiteralValue;
+
         for stmt in stmts {
             match stmt {
                 Stmt::Expression { expression } => {
@@ -36,7 +37,6 @@ impl Interpreter {
 
                     self.environment.borrow_mut()
                         .define(name.lexeme.to_string(), value);
-
                 },
                 Stmt::Block { statements } => {
                     let mut new_environment = Environment::new();
@@ -44,10 +44,9 @@ impl Interpreter {
 
                     let old_environment = self.environment.clone();
                     self.environment = Rc::new(RefCell::new(new_environment));
-                    let block_result = self.interpret(statements.into_iter().map(|b| b.as_ref()).collect());
+                    let stmts = statements.into_iter().map(|b| b.as_ref()).collect();
+                    self.interpret(stmts)?;
                     self.environment = old_environment;
-
-                    return block_result;
                 },
                 Stmt::IfStmt { predicate, then, els } => {
 

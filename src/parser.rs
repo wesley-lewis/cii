@@ -411,7 +411,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::{scanner::{Token, TokenType}, LiteralValue, Scanner};
+    use crate::Scanner;
+    use crate::scanner::{Token, TokenType, LiteralValue};
+    use crate::interpreter::Interpreter;
 
     use super::Parser;
 
@@ -419,14 +421,14 @@ mod tests {
     fn test_addition() {
         let print = Token::new(
             TokenType::Print,
-            "".to_string(),
+            "print".to_string(),
             None,
             0,
         );
         let one = Token::new(
             TokenType::Number,
-            String::from("1"),
-            Some(LiteralValue::IntValue(1)),
+            String::from("1.0"),
+            Some(LiteralValue::FValue(1.0)),
             0,
         );
         let plus = Token::new( 
@@ -437,8 +439,8 @@ mod tests {
         );
         let two = Token::new(
             TokenType::Number,
-            String::from("2"),
-            Some(LiteralValue::IntValue(2)),
+            String::from("2.0"),
+            Some(LiteralValue::FValue(2.0)),
             0,
         );
         let semicolon = Token::new(
@@ -447,31 +449,37 @@ mod tests {
             None,
             0,
         );
-        let mut parser = Parser::new(vec![print, one, plus, two, semicolon]);
-        let parsed_expr = parser.parse().unwrap();
-        let string_expr = parsed_expr[0].to_string();
-        println!("test addition: {}", string_expr);
-        assert_eq!(string_expr, "(+ 1 2)");
+        let eof = Token::new(
+            TokenType::Eof,
+            "".to_string(),
+            None,
+            0
+        );
+        let mut parser = Parser::new(vec![print, one, plus, two, semicolon, eof]);
+        let statements = parser.parse().unwrap();
+        let string_expr = statements[0].to_string();
+
+        assert_eq!("(print (+ 1 2))", string_expr);
     }
 
     #[test]
-    fn test_comparison() {
-        let source = "1 + 2 == 3 + 4;";
+    fn comparison() {
+        let source = "1.0 + 2.0 == 5.0 + 7.0;";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().unwrap();
-        let mut parser = Parser::new(scanner.tokens);
+        let tokens = scanner.scan_tokens().unwrap();
+        let mut parser = Parser::new(tokens);
         let parsed_expr = parser.parse().unwrap();
         let string_expr = parsed_expr[0].to_string();
 
-        assert_eq!(string_expr, "(== (+ 1 2) (+ 3 4))");
+        assert_eq!(string_expr, "(== (+ 1 2) (+ 5 7))");
     }
 
     #[test]
     fn test_eq_with_paren() {
-        let source = "1 == (2 + 2);";
+        let source = "1.0 == (2.0 + 2.0);";
         let mut scanner = Scanner::new(source);
-        scanner.scan_tokens().unwrap();
-        let mut parser = Parser::new(scanner.tokens);
+        let tokens = scanner.scan_tokens().unwrap();
+        let mut parser = Parser::new(tokens);
         let parsed_expr = parser.parse().unwrap();
         let string_expr = parsed_expr[0].to_string();
 

@@ -12,7 +12,6 @@ fn is_alpha(ch: char) -> bool {
 }
 
 fn is_alpha_numeric(ch: char) -> bool {
-    let uch = ch as u8;
     if is_digit(ch) || is_alpha(ch) {
         return true;
     }
@@ -73,12 +72,12 @@ impl Scanner {
         }
 
         // adding Eof token
-        self.tokens.push(Token {
-            token_type: TokenType::Eof,
-            lexeme: "".to_string(),
-            literal: None,
-            line_num: self.line,
-        });
+        self.tokens.push(Token::new(
+            TokenType::Eof,
+            "".to_string(),
+            None,
+            self.line
+        ));
 
         if errors.len() > 0 {
             let mut joined = "".to_string();
@@ -257,12 +256,12 @@ impl Scanner {
     fn add_token_lit(&mut self, token_type: TokenType, literal: Option<LiteralValue>) {
         let text = self.source[self.start .. self.current].to_string();
 
-        self.tokens.push(Token {
+        self.tokens.push(Token::new(
             token_type,
+            text,
             literal,
-            line_num: self.line,
-            lexeme: text,
-        });
+            self.line,
+        ));
     }
     
     fn advance(&mut self) -> char {
@@ -356,7 +355,6 @@ pub enum LiteralValue {
     IntValue(i64),
     FValue(f64),
     StringValue(String),
-    IdentifierValue(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

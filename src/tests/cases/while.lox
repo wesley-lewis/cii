@@ -1,0 +1,5 @@
+var a = 2.0;
+while(a) {
+	a = a - 1.0;
+	print a;
+}

@@ -8,11 +8,15 @@ pub enum Stmt {
     Expression { expression: Expr },
     Print { expression: Expr },
     Var { name: Token, initializer: Expr },
-    Block { statements: Vec<Stmt> },
+    Block { statements: Vec<Box<Stmt>> },
     IfStmt { 
         predicate: Expr, 
         then: Box<Stmt>, 
         els: Option<Box<Stmt>> 
+    },
+    WhileStmt {
+        condition: Expr,
+        body: Box<Stmt>,
     }
 }
 
@@ -34,6 +38,9 @@ impl Stmt {
                 )
             }
             IfStmt { predicate, then, els } => todo!(),
+            WhileStmt { condition, body } => {
+                todo!()
+            }
         }
     }
 }

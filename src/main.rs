@@ -34,7 +34,7 @@ fn run(interpreter: &mut Interpreter, contents: &str) -> Result<(), String> {
     
     let mut parser = Parser::new(tokens);
     let stmts = parser.parse()?;
-    interpreter.interpret(stmts)?;
+    interpreter.interpret(stmts.iter().collect())?;
 
     Ok(())
 }
@@ -111,4 +111,6 @@ fn main() {
 // 18) Scope is working good! Needed Rc for environment.
 // 19) If-else statements parsed and evaluated!
 // 20) Logical operators evaluated
-// part 20 done
+// 21) used Rc & RefCell to modify environment within another block. Solved a bug. Rc<RefCell>
+//     pattern is important when there are multiple modifiers to the data
+// part 21 done

@@ -74,10 +74,24 @@ impl Parser {
             self.block_statement()
         }else if self.match_token(&If) {
             self.if_statement()
+        }else if self.match_token(&While) {
+            self.while_statement()
         }
         else {
             self.expression_statement()
         }
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '('.")?;
+        let condition = self.expression()?;
+        self.consume(RightParen, "Expected ')'.")?;
+        let body = self.statement()?;
+
+        Ok(Stmt::WhileStmt { 
+            condition, 
+            body: Box::from(body) 
+        })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, String> {
@@ -106,7 +120,7 @@ impl Parser {
 
         while !self.check(RightBrace) && !self.is_at_end() {
             let decl = self.declaration()?;
-            statements.push(decl);
+            statements.push(Box::new(decl));
         }
 
         self.consume(RightBrace, "Expected '}'.")?;

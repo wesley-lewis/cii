@@ -1,6 +1,8 @@
 use crate::Token;
 use crate::scanner;
 use crate::environment::Environment;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum LiteralValue {
@@ -153,13 +155,13 @@ impl Expr {
         }
     }
 
-    pub fn evaluate(&self, environment: &mut Environment) -> Result<LiteralValue, String> {
+    pub fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<LiteralValue, String> {
         use crate::scanner::TokenType::*;
 
         match self {
             Expr::Assign { name, value } => {
-                let new_value = (*value).evaluate(environment)?;
-                let assign_success = environment.assign(&name.lexeme, new_value.clone());
+                let new_value = (*value).evaluate(environment.clone())?;
+                let assign_success = environment.borrow_mut().assign(&name.lexeme, new_value.clone());
                 if assign_success {
                     return Ok(new_value);
                 }
@@ -167,7 +169,7 @@ impl Expr {
                 Err(format!("variable {} has not been declared", name.lexeme))
             },
             Expr::Variable{ name } => {
-                match environment.get(name.lexeme.as_ref()) {
+                match environment.borrow().get(name.lexeme.as_ref()) {
                     Some(value) => Ok(value.clone()),
                     None => Err(format!("Variable '{}' has not been declared", &name.lexeme))
                 }
@@ -176,21 +178,21 @@ impl Expr {
             Expr::Logical { left, operator, right } => {
                 match operator.token_type {
                     Or => {
-                        let lhs_value = left.evaluate(environment)?;
+                        let lhs_value = left.evaluate(environment.clone())?;
                         let lhs_true = lhs_value.is_truthy();
                         if lhs_true == LiteralValue::True {
                             return Ok(lhs_value);
                         }else {
-                            right.evaluate(environment)
+                            right.evaluate(environment.clone())
                         }
                     },
                     And => {
-                        let lhs_value = left.evaluate(environment)?;
+                        let lhs_value = left.evaluate(environment.clone())?;
                         let lhs_true = lhs_value.is_truthy();
                         if lhs_true == LiteralValue::False {
                             return Ok(lhs_true);
                         }else {
-                            right.evaluate(environment)
+                            right.evaluate(environment.clone())
                         }
                     },
                     ttype => Err(format!("Invalid token in logical expression: {}", ttype)),
@@ -208,8 +210,8 @@ impl Expr {
                 }
             },
             Expr::Binary { left, operator, right } => {
-                let left: LiteralValue = left.evaluate(environment)?;
-                let right = right.evaluate(environment)?;
+                let left: LiteralValue = left.evaluate(environment.clone())?;
+                let right = right.evaluate(environment.clone())?;
 
                 match (&left, operator.token_type, &right) {
                     (LiteralValue::Number(x), Plus, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x + y)),

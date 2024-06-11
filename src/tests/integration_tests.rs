@@ -47,6 +47,33 @@ fn interpret_while_math() {
 }
 
 #[test]
+fn interpret_for() {
+    let output = Command::new("./target/debug/cii").args(vec!["./src/tests/cases/for.lox"]).output().unwrap();
+
+    let output = String::from_utf8(output.stdout).unwrap();
+    let lines: Vec<&str> = output.split("\n").collect();
+
+    let mut fibo = vec![];
+    let mut a = 1;
+    let mut b = 1;
+    let mut temp = 0;
+    for _ in 0..21 {
+        temp = b;
+        b = a + b;
+        a = temp;
+
+        fibo.push(a);
+    }
+
+    println!("{:?}", lines);
+    println!("{:?}", fibo);
+    assert_eq!(lines.len() - 1, fibo.len());
+    for i in 0..fibo.len() {
+        assert_eq!(lines[i], fibo[i].to_string());
+    }
+}
+
+#[test]
 fn test_bug() {
     let source = std::fs::read_to_string("src/tests/cases/while.lox").unwrap();
     let mut scanner = Scanner::new(&source);

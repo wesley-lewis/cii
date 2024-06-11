@@ -40,7 +40,7 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, String> {
-        if self.match_token(&Var) {
+        if self.match_token(Var) {
             match self.var_declaration() {
                 Ok(stmt) => Ok(stmt),
                 Err(e) => {
@@ -56,7 +56,7 @@ impl Parser {
         let token = self.consume(Identifier, "Expected variable name")?;
 
         let initializer;
-        if self.match_token(&Equal) {
+        if self.match_token(Equal) {
             initializer = self.expression()?;
         }else {
             initializer = Expr::Literal { value: LiteralValue::Nil };
@@ -68,18 +68,86 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, String> {
-        if self.match_token(&Print) {
+        if self.match_token(Print) {
             self.print_statement()
-        }else if self.match_token(&LeftBrace) {
+        }else if self.match_token(LeftBrace) {
             self.block_statement()
-        }else if self.match_token(&If) {
+        }else if self.match_token(If) {
             self.if_statement()
-        }else if self.match_token(&While) {
+        }else if self.match_token(While) {
             self.while_statement()
+        }else if self.match_token(For) {
+            self.for_statement()
         }
         else {
             self.expression_statement()
         }
+    }
+    
+    fn for_statement(&mut self) -> Result<Stmt, String> {
+        self.consume(LeftParen, "Expected '(' after 'for'.")?;
+
+        // Consumes "SMTHNG ;"
+        let initializer;
+        if self.match_token(SemiColon) {
+            initializer = None;
+        }else if self.match_token(Var) {
+            let var_decl = self.var_declaration()?;
+            initializer = Some(var_decl);
+        }else {
+            let expr = self.expression_statement()?;
+            initializer = Some(expr);
+        }
+
+        // Consumes "SMTHNG? ;"
+        let condition;
+        if !self.check(SemiColon) {
+            let expr = self.expression()?;
+            condition = Some(expr);
+        }else {
+            condition = None;
+        }
+        self.consume(SemiColon, "Expected ';' after loop condition")?;
+
+        let increment;
+        if !self.check(SemiColon) {
+            let expr = self.expression()?;
+            increment = Some(expr);
+        }else {
+            increment = None;
+        }
+        self.consume(RightParen, "Expected ')' after for clauses")?;
+
+        let mut body = self.statement()?;
+        if let Some(inc) = increment {
+            body = Stmt::Block {
+                statements: vec![
+                    Box::new(body), 
+                    Box::new(Stmt::Expression { expression: inc }),
+                ],
+            };
+        }
+        
+        let cond;
+        match condition {
+            None => cond = Expr::Literal { value: LiteralValue::True },
+            Some(c) => cond = c,
+        }
+        body = Stmt::WhileStmt {
+            condition: cond,
+            body: Box::new(body),
+        };
+
+        if let Some(init) = initializer {
+            body = Stmt::Block {
+                statements: vec![
+                    Box::new(init),
+                    Box::new(body),
+                ],
+            };
+        }
+
+        Ok(body)
     }
 
     fn while_statement(&mut self) -> Result<Stmt, String> {
@@ -101,7 +169,7 @@ impl Parser {
 
         let then = self.statement()?;
 
-        let els = if self.match_token(&Else) {
+        let els = if self.match_token(Else) {
             let stm = self.statement()?;
             Some(Box::from(stm))
         }else {
@@ -153,7 +221,7 @@ impl Parser {
     fn assignment(&mut self) -> Result<Expr, String> {
         let expr = self.or()?;
 
-        if self.match_token(&Equal) {
+        if self.match_token(Equal) {
             let _equals = self.previous();
             let value = self.assignment()?;
 
@@ -174,7 +242,7 @@ impl Parser {
     fn or(&mut self) -> Result<Expr, String> {
         let mut expr = self.and()?;
         
-        while self.match_token(&Or) {
+        while self.match_token(Or) {
             let operator = self.previous();
             let right = self.and()?;
 
@@ -191,7 +259,7 @@ impl Parser {
     fn and(&mut self) -> Result<Expr, String> {
         let mut expr = self.equality()?;
 
-        while self.match_token(&And) {
+        while self.match_token(And) {
             let operator = self.previous();
             let right = self.equality()?;
 
@@ -335,11 +403,11 @@ impl Parser {
         self.peek().token_type == typ
     }
 
-    fn match_token(&mut self, typ: &TokenType) -> bool {
+    fn match_token(&mut self, typ: TokenType) -> bool {
         if self.is_at_end() {
             return false;
         } else {
-            if &self.peek().token_type == typ {
+            if self.peek().token_type == typ {
                 self.advance();
                 return true;
             }
@@ -363,7 +431,7 @@ impl Parser {
 
     fn match_tokens(&mut self, typs: &[TokenType]) -> bool {
         for typ in typs {
-            if self.match_token(typ) {
+            if self.match_token(*typ) {
                 return true;
             }
         }
@@ -413,7 +481,6 @@ impl Parser {
 mod tests {
     use crate::Scanner;
     use crate::scanner::{Token, TokenType, LiteralValue};
-    use crate::interpreter::Interpreter;
 
     use super::Parser;
 

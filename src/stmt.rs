@@ -15,7 +15,15 @@ pub enum Stmt {
     WhileStmt {
         condition: Expr,
         body: Box<Stmt>,
-    }
+    },
+    // ForStmt {
+    //     var_decl: Option<Box<Stmt>>,
+    //     expr_stmt: Option<Box<Stmt>>,
+    //
+    //     condition: Option<Expr>,
+    //     incrementer: Option<Expr>,
+    //     body: Box<Stmt>,
+    // }
 }
 
 impl Stmt {
@@ -40,6 +48,8 @@ impl Stmt {
             WhileStmt { condition: _condition, body: _body } => {
                 todo!()
             }
+            // ForStmt { var_decl, condition, incrementer } => {
+            // }
         }
     }
 }

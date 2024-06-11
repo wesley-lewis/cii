@@ -117,4 +117,5 @@ fn main() {
 // 21) used Rc & RefCell to modify environment within another block. Solved a bug. Rc<RefCell>
 //     pattern is important when there are multiple modifiers to the data
 // 22) resolved all warnings. Created integration tests
-// part 22 done
+// 23) interpreted for loops by converting for loop into traditional while loop
+// part 23 done

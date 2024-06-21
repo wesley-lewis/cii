@@ -1,20 +1,24 @@
 use crate::expr::Expr;
 use crate::scanner::Token;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Expression { expression: Expr },
     Print { expression: Expr },
     Var { name: Token, initializer: Expr },
     Block { statements: Vec<Box<Stmt>> },
-    IfStmt { 
-        predicate: Expr, 
+    IfStmt { predicate: Expr, 
         then: Box<Stmt>, 
         els: Option<Box<Stmt>> 
     },
     WhileStmt {
         condition: Expr,
         body: Box<Stmt>,
+    },
+    Function {
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Box<Stmt>>,
     },
     // ForStmt {
     //     var_decl: Option<Box<Stmt>>,
@@ -23,7 +27,6 @@ pub enum Stmt {
     //     condition: Option<Expr>,
     //     incrementer: Option<Expr>,
     //     body: Box<Stmt>,
-    // }
 }
 
 impl Stmt {
@@ -47,7 +50,10 @@ impl Stmt {
             IfStmt { predicate: _, then: _, els: _ } => todo!(),
             WhileStmt { condition: _condition, body: _body } => {
                 todo!()
-            }
+            },
+            Function { name: _, params: _, body: _ } => {
+                todo!()
+            },
             // ForStmt { var_decl, condition, incrementer } => {
             // }
         }

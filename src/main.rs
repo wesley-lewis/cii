@@ -118,4 +118,5 @@ fn main() {
 //     pattern is important when there are multiple modifiers to the data
 // 22) resolved all warnings. Created integration tests
 // 23) interpreted for loops by converting for loop into traditional while loop
-// part 23 done
+// 24) implemented function calls. Created a framework for defining functions.
+// 25) implemented function definition. Possible to create user-defined functions and call them.

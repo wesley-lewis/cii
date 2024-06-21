@@ -4,13 +4,43 @@ use crate::environment::Environment;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone)]
 pub enum LiteralValue {
     Number(f32),
     StringValue(String),
     True,
     False,
     Nil,
+    Callable {
+        name: String,
+        arity: usize,
+        fun: Rc<dyn Fn(Rc<RefCell<Environment>>, &Vec<LiteralValue>) -> LiteralValue>,
+    },
+}
+
+impl PartialEq for LiteralValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Number(x), Self::Number(y)) => x == y,
+            (
+                Self::Callable { name, arity, fun: _ }, 
+                Self::Callable { name: name2, arity: arity2, fun: _ }
+             ) => {
+                name == name2 && arity == arity2
+            },
+            (Self::StringValue(x), Self::StringValue(y)) => x == y,
+            (Self::True, Self::True) => true,
+            (Self::False, Self::False) => true,
+            (Self::Nil, Self::Nil) => true,
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Debug for LiteralValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
 fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
@@ -35,6 +65,7 @@ impl LiteralValue {
             Self::True => "true".to_string(),
             Self::False => "false".to_string(),
             Self::Nil => "nil".to_string(),
+            Self::Callable { name, arity, fun: _ } => format!("{name}/{arity}"),
         }
     }
 
@@ -45,6 +76,7 @@ impl LiteralValue {
             Self::True => "Boolean",
             Self::False => "Boolean",
             Self::Nil => "Nil",
+            Self::Callable { name: _, arity: _, fun: _} => "Callable",
         }
     }
 
@@ -74,7 +106,8 @@ impl LiteralValue {
             Self::StringValue(s) => if s.len() == 0 { Self::True } else { Self::False },
             Self::True => Self::False,
             Self::False => Self::True,
-            Self::Nil => Self::True
+            Self::Nil => Self::True,
+            Self::Callable { name: _, arity: _, fun: _ } => panic!("cannot use callable as truthy value"),
         }
     }
 
@@ -90,12 +123,13 @@ impl LiteralValue {
             Self::StringValue(s) => if s.len() == 0 { Self::False } else { Self::True },
             Self::True => Self::True,
             Self::False => Self::False,
-            Self::Nil => Self::False
+            Self::Nil => Self::False,
+            Self::Callable { name: _, arity: _, fun: _ } => panic!("cannot use callable as truthy value"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Expr {
     Assign {
         name: Token,
@@ -105,6 +139,11 @@ pub enum Expr {
         left: Box<Expr>,
         operator: Token,
         right: Box<Expr>,
+    },
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
     },
     Grouping {
         expression: Box<Expr>,
@@ -123,6 +162,12 @@ pub enum Expr {
     },
     Variable {
         name: Token,
+    }
+}
+
+impl std::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
     }
 }
 
@@ -150,6 +195,7 @@ impl Expr {
                 format!("({} {})", operator_str, right_str)
             },
             Expr::Variable { name } => format!("(var {})", name.lexeme),
+            Expr::Call { callee, paren: _, arguments } => format!("({} {:?})", (*callee).to_string(), arguments),
         }
     }
 
@@ -212,31 +258,53 @@ impl Expr {
                 let right = right.evaluate(environment.clone())?;
 
                 match (&left, operator.token_type, &right) {
-                    (LiteralValue::Number(x), Plus, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x + y)),
-                    (LiteralValue::Number(x), Minus, LiteralValue::Number(y)) => Ok(LiteralValue::Number(x - y)),
-                    (LiteralValue::Number(x), Star, LiteralValue::Number(y)) =>  Ok(LiteralValue::Number(x * y)),
-                    (LiteralValue::Number(x), Slash, LiteralValue::Number(y)) => Ok(LiteralValue::Number(x / y)),
-                    (LiteralValue::Number(x), Greater, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x > y)),
-                    (LiteralValue::Number(x), GreaterEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x >= y)),
-                    (LiteralValue::Number(x), Less, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x < y)),
-                    (LiteralValue::Number(x), LessEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x <= y)),
-                    (LiteralValue::Number(x), BangEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
-                    (LiteralValue::Number(x), EqualEqual, LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
+                    (LiteralValue::Number(x),       Plus,           LiteralValue::Number(y)) => Ok(LiteralValue::Number(x + y)),
+                    (LiteralValue::Number(x),       Minus,          LiteralValue::Number(y)) => Ok(LiteralValue::Number(x - y)),
+                    (LiteralValue::Number(x),       Star,           LiteralValue::Number(y)) => Ok(LiteralValue::Number(x * y)),
+                    (LiteralValue::Number(x),       Slash,          LiteralValue::Number(y)) => Ok(LiteralValue::Number(x / y)),
+                    (LiteralValue::Number(x),       Greater,        LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x > y)),
+                    (LiteralValue::Number(x),       GreaterEqual,   LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x >= y)),
+                    (LiteralValue::Number(x),       Less,           LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x < y)),
+                    (LiteralValue::Number(x),       LessEqual,      LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x <= y)),
+                    (LiteralValue::Number(x),       BangEqual,      LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x != y)),
+                    (LiteralValue::Number(x),       EqualEqual,     LiteralValue::Number(y)) => Ok(LiteralValue::from_bool(x == y)),
 
-                    (LiteralValue::StringValue(_), op, LiteralValue::Number(_)) => Err(format!("'{}' is not defined for string and number", op)),
-                    (LiteralValue::Number(_), op, LiteralValue::StringValue(_)) => Err(format!("'{}' is not defined for number and string", op)),
+                    (LiteralValue::StringValue(_),  op,             LiteralValue::Number(_)) => Err(format!("'{}' is not defined for string and number", op)),
+                    (LiteralValue::Number(_),       op,             LiteralValue::StringValue(_)) => Err(format!("'{}' is not defined for number and string", op)),
 
-                    (LiteralValue::StringValue(s1), Plus, LiteralValue::StringValue(s2)) => Ok(LiteralValue::StringValue(format!("{}{}", s1,s2))),
-                    (LiteralValue::StringValue(s1), EqualEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
-                    (LiteralValue::StringValue(s1), BangEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
+                    (LiteralValue::StringValue(s1), Plus,           LiteralValue::StringValue(s2)) => Ok(LiteralValue::StringValue(format!("{}{}", s1,s2))),
+                    (LiteralValue::StringValue(s1), EqualEqual,     LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 == s2)),
+                    (LiteralValue::StringValue(s1), BangEqual,      LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 != s2)),
 
-                    (LiteralValue::StringValue(s1), Greater, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 > s2)),
-                    (LiteralValue::StringValue(s1), GreaterEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 >= s2)),
-                    (LiteralValue::StringValue(s1), Less, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 < s2)),
-                    (LiteralValue::StringValue(s1), LessEqual, LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 <= s2)),
-                    (x, ttype, y) => Err(format!("{} is not implemented for operands {:?} and {:?}", ttype, x, y))
+                    (LiteralValue::StringValue(s1), Greater,        LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 > s2)),
+                    (LiteralValue::StringValue(s1), GreaterEqual,   LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 >= s2)),
+                    (LiteralValue::StringValue(s1), Less,           LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 < s2)),
+                    (LiteralValue::StringValue(s1), LessEqual,      LiteralValue::StringValue(s2)) => Ok(LiteralValue::from_bool(s1 <= s2)),
+                    (x, ttype, y) => Err(format!("{} is not implemented for operands {} and {}", ttype, x.to_string(), y.to_string()))
                 }
             },
+            Expr::Call { callee, paren: _, arguments} => {
+                // look up function definition in environment
+                let callable = (*callee).evaluate(environment.clone())?;
+                match callable {
+                    LiteralValue::Callable { name, arity, fun } => {
+                        // Do some checking (correct number of args?)
+                        if arguments.len() != arity {
+                            return Err(format!("Callable {} expected {} arguments but got {}", name, arity, arguments.len()));
+                        }
+                        // Evaluate arguments
+                        let mut arg_vals = vec![];
+                        for arg in arguments {
+                            let val = arg.evaluate(environment.clone())?;
+                            arg_vals.push(val);
+                        }
+
+                        // Apply to arguments
+                        Ok(fun(environment.clone(), &arg_vals))
+                    }
+                    other => Err(format!("{} is not callable", other.to_type())),
+                }
+            }
         }
     }
 

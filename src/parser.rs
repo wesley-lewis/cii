@@ -9,6 +9,11 @@ pub struct Parser {
     current: usize,
 }
 
+#[derive(Debug)]
+enum FunctionKind {
+    Function,
+}
+
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
@@ -41,15 +46,48 @@ impl Parser {
 
     fn declaration(&mut self) -> Result<Stmt, String> {
         if self.match_token(Var) {
-            match self.var_declaration() {
-                Ok(stmt) => Ok(stmt),
-                Err(e) => {
-                    Err(e)
-                }, 
-            }
-        } else {
+            self.var_declaration()
+        }else if self.match_token(Fun) {
+            self.function(FunctionKind::Function)
+        }else {
             self.statement()
         }
+    }
+
+    fn function(&mut self, kind: FunctionKind) -> Result<Stmt, String> {
+        let name = self.consume(Identifier, &format!("Expected {kind:?} name"))?;
+
+        self.consume(LeftParen, &format!("Expected '(' after {kind:?} name"))?;
+        let mut params = vec![];
+        if !self.check(RightParen) {
+            loop {
+                if params.len() >= 255 {
+                    let location = self.peek().line_num;
+                    return Err(format!("Line {location}: can't have more than 255 parameters"));
+                }
+                
+                let param = self.consume(Identifier, "Expected parameter name")?;
+                params.push(param);
+
+                if !self.match_token(Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(RightParen, "Expected ')' after parameters.")?;
+        
+        self.consume(LeftBrace, &format!("Expected '{{' before {kind:?} body."))?;
+
+        let body = match self.block_statement()? {
+            Stmt::Block { statements } => statements,
+            _ => return Err(format!("Expected body for {kind:?}")),
+        };
+
+        Ok(Stmt::Function {
+            name,
+            params,
+            body,
+        })
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, String> {
@@ -345,27 +383,48 @@ impl Parser {
                 right: Box::from(rhs),
             })
         }else {
-            self.primary()
+            self.call()
         }
     }
 
-    // fn primary(&mut self) -> Result<Expr, String> {
-    //     if self.match_token(&LeftParen) {
-    //         let expr = self.expression()?;
-    //         self.consume(RightParen, "Expected ')'")?;
-    //         Ok(
-    //             Grouping {
-    //                 expression: Box::from(expr),
-    //         })
-    //     }else {
-    //         let token = self.peek();
-    //         self.advance();
-    //         Ok(
-    //             Literal{
-    //                 value: LiteralValue::from_token(token),
-    //         })
-    //     }
-    // }
+    fn call(&mut self) -> Result<Expr, String> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.match_token(LeftParen) {
+                expr = self.finish_call(expr)?;
+            }else {
+                break;
+            }
+        }
+        // Apply to arguments
+
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, String> {
+        let mut arguments = vec![];
+        if !self.check(RightParen) {
+            loop {
+                let arg = self.expression()?;
+                arguments.push(arg);
+                if arguments.len() >= 255 {
+                    let location = self.peek().line_num;
+                    return Err(format!("line: {location} cannot have more than 255 arguments"));
+                }
+                if !self.match_token(Comma) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(RightParen, "Expect ')' after function arguments")?;
+        Ok(Expr::Call {
+            callee: Box::new(callee),
+            arguments,
+            paren: Token::new(LeftParen, "".to_string(), None, 0),
+        })
+    }
 
     fn primary(&mut self) -> Result<Expr, String> {
         let token = self.peek();

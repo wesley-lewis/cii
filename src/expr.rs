@@ -46,6 +46,7 @@ impl std::fmt::Debug for LiteralValue {
 fn unwrap_as_f32(literal: Option<scanner::LiteralValue>) -> f32 {
     match literal {
         Some(scanner::LiteralValue::FValue(x)) => x as f32,
+        Some(scanner::LiteralValue::IntValue(x)) => x as f32,
         _ => panic!("could not unwrap as f32")
     }
 }
